@@ -14,6 +14,7 @@ import {
   Search,
   ShieldCheck,
   UploadCloud,
+  X,
   UserPlus,
   XCircle,
 } from "lucide-react"
@@ -51,6 +52,12 @@ type ApiResult = {
   matchState?: MatchState
   matchedImageSrc?: string
   raw: unknown
+}
+
+type SuccessAlert = {
+  id: number
+  title: string
+  message: string
 }
 
 type ModeConfig = {
@@ -358,6 +365,9 @@ export function FaceVerificationClient() {
   const [submitting, setSubmitting] = React.useState(false)
   const [result, setResult] = React.useState<ApiResult | null>(null)
   const [notice, setNotice] = React.useState("")
+  const [successAlert, setSuccessAlert] = React.useState<SuccessAlert | null>(
+    null
+  )
   const [installPrompt, setInstallPrompt] =
     React.useState<BeforeInstallPromptEvent | null>(null)
   const [appInstalled, setAppInstalled] = React.useState(() => {
@@ -379,6 +389,7 @@ export function FaceVerificationClient() {
   const rearInputRef = React.useRef<HTMLInputElement | null>(null)
   const streamRef = React.useRef<MediaStream | null>(null)
   const previewObjectUrlRef = React.useRef<string | null>(null)
+  const successAlertTimerRef = React.useRef<number | null>(null)
 
   const activeMode = modes.find((item) => item.id === mode) ?? modes[0]!
   const ActiveModeIcon = activeMode.Icon
@@ -386,6 +397,32 @@ export function FaceVerificationClient() {
   const stopTracks = React.useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
+  }, [])
+
+  const clearSuccessAlert = React.useCallback(() => {
+    if (successAlertTimerRef.current) {
+      window.clearTimeout(successAlertTimerRef.current)
+      successAlertTimerRef.current = null
+    }
+
+    setSuccessAlert(null)
+  }, [])
+
+  const showSuccessAlert = React.useCallback((nextResult: ApiResult) => {
+    if (successAlertTimerRef.current) {
+      window.clearTimeout(successAlertTimerRef.current)
+    }
+
+    setSuccessAlert({
+      id: Date.now(),
+      title: nextResult.title,
+      message: nextResult.message,
+    })
+
+    successAlertTimerRef.current = window.setTimeout(() => {
+      setSuccessAlert(null)
+      successAlertTimerRef.current = null
+    }, 4500)
   }, [])
 
   const clearSelectedImage = React.useCallback(() => {
@@ -398,18 +435,22 @@ export function FaceVerificationClient() {
     setPreviewUrl(null)
   }, [])
 
-  const updateSelectedImage = React.useCallback((file: File) => {
-    if (previewObjectUrlRef.current) {
-      URL.revokeObjectURL(previewObjectUrlRef.current)
-    }
+  const updateSelectedImage = React.useCallback(
+    (file: File) => {
+      if (previewObjectUrlRef.current) {
+        URL.revokeObjectURL(previewObjectUrlRef.current)
+      }
 
-    const nextPreviewUrl = URL.createObjectURL(file)
-    previewObjectUrlRef.current = nextPreviewUrl
-    setSelectedFile(file)
-    setPreviewUrl(nextPreviewUrl)
-    setResult(null)
-    setNotice("")
-  }, [])
+      const nextPreviewUrl = URL.createObjectURL(file)
+      previewObjectUrlRef.current = nextPreviewUrl
+      setSelectedFile(file)
+      setPreviewUrl(nextPreviewUrl)
+      setResult(null)
+      setNotice("")
+      clearSuccessAlert()
+    },
+    [clearSuccessAlert]
+  )
 
   const openFileInput = React.useCallback((captureMode?: FacingMode) => {
     const input =
@@ -427,9 +468,10 @@ export function FaceVerificationClient() {
       setMode(nextMode)
       setResult(null)
       setNotice("")
+      clearSuccessAlert()
       clearSelectedImage()
     },
-    [clearSelectedImage]
+    [clearSelectedImage, clearSuccessAlert]
   )
 
   const openCamera = React.useCallback(
@@ -545,6 +587,10 @@ export function FaceVerificationClient() {
 
       if (previewObjectUrlRef.current) {
         URL.revokeObjectURL(previewObjectUrlRef.current)
+      }
+
+      if (successAlertTimerRef.current) {
+        window.clearTimeout(successAlertTimerRef.current)
       }
     }
   }, [stopTracks])
@@ -742,6 +788,7 @@ export function FaceVerificationClient() {
     setSubmitting(true)
     setNotice("")
     setResult(null)
+    clearSuccessAlert()
 
     try {
       const response = await fetch(url, {
@@ -752,12 +799,21 @@ export function FaceVerificationClient() {
         method: "POST",
       })
       const payload = await readResponsePayload(response)
-      setResult(
-        resultFromPayload(mode, response.ok, response.statusText, payload)
+      const nextResult = resultFromPayload(
+        mode,
+        response.ok,
+        response.statusText,
+        payload
       )
+
+      setResult(nextResult)
 
       const requestSucceeded =
         response.ok && readBoolean(payload, "success") !== false
+
+      if (nextResult.tone === "success") {
+        showSuccessAlert(nextResult)
+      }
 
       if (mode === "register" && requestSucceeded) {
         clearSelectedImage()
@@ -792,6 +848,10 @@ export function FaceVerificationClient() {
 
   return (
     <main className="min-h-dvh overflow-x-hidden bg-[#d9eeee] pb-[calc(5.5rem+env(safe-area-inset-bottom))] text-[#263b3e] lg:pb-0 dark:bg-[#061416] dark:text-white">
+      {successAlert ? (
+        <SuccessPopup alert={successAlert} onClose={clearSuccessAlert} />
+      ) : null}
+
       <div className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col gap-3 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 sm:gap-5 sm:px-6 lg:px-8">
         <header className="sticky top-0 z-20 flex flex-col gap-3 rounded-[8px] border border-white/55 bg-[#f2fbfa]/92 px-3 py-3 shadow-xl shadow-[#6e9692]/18 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-4 dark:border-[#52C2C3]/15 dark:bg-[#071d1f]/92">
           <div className="flex w-full min-w-0 items-center justify-between gap-3 sm:w-auto sm:justify-start">
@@ -1126,6 +1186,42 @@ export function FaceVerificationClient() {
         </div>
       </nav>
     </main>
+  )
+}
+
+function SuccessPopup({
+  alert,
+  onClose,
+}: {
+  alert: SuccessAlert
+  onClose: () => void
+}) {
+  return (
+    <div className="pointer-events-none fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 flex justify-center sm:inset-x-auto sm:top-5 sm:right-5">
+      <div
+        aria-live="polite"
+        className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-[8px] border border-[#52C2C3]/35 bg-white/96 p-3 text-[#263b3e] shadow-2xl shadow-[#2f9fa0]/20 backdrop-blur dark:border-[#52C2C3]/28 dark:bg-[#071d1f]/96 dark:text-white dark:shadow-black/35"
+        role="status"
+      >
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-[8px] border border-[#52C2C3]/35 bg-[#e7fbfb] text-[#2f9fa0] dark:border-[#52C2C3]/25 dark:bg-[#082629] dark:text-[#52C2C3]">
+          <CheckCircle2 className="size-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">{alert.title}</p>
+          <p className="mt-1 text-sm break-words text-[#657b7b] dark:text-white/64">
+            {alert.message}
+          </p>
+        </div>
+        <button
+          aria-label="Close success alert"
+          className="flex size-8 shrink-0 touch-manipulation items-center justify-center rounded-[7px] text-[#607878] transition hover:bg-[#e7fbfb] hover:text-[#2f9fa0] dark:text-white/62 dark:hover:bg-white/8 dark:hover:text-white"
+          onClick={onClose}
+          type="button"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+    </div>
   )
 }
 
