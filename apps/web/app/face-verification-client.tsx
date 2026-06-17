@@ -350,9 +350,6 @@ export function FaceVerificationClient() {
   const [mode, setMode] = React.useState<VerificationMode>("register")
   const [cameraState, setCameraState] = React.useState<CameraState>("idle")
   const [facingMode, setFacingMode] = React.useState<FacingMode>("user")
-  const [fileInputCapture, setFileInputCapture] = React.useState<
-    FacingMode | undefined
-  >()
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
   const [personName, setPersonName] = React.useState("")
@@ -378,6 +375,8 @@ export function FaceVerificationClient() {
   const videoRef = React.useRef<HTMLVideoElement | null>(null)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const selfieInputRef = React.useRef<HTMLInputElement | null>(null)
+  const rearInputRef = React.useRef<HTMLInputElement | null>(null)
   const streamRef = React.useRef<MediaStream | null>(null)
   const previewObjectUrlRef = React.useRef<string | null>(null)
 
@@ -387,6 +386,16 @@ export function FaceVerificationClient() {
   const stopTracks = React.useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
+  }, [])
+
+  const clearSelectedImage = React.useCallback(() => {
+    if (previewObjectUrlRef.current) {
+      URL.revokeObjectURL(previewObjectUrlRef.current)
+      previewObjectUrlRef.current = null
+    }
+
+    setSelectedFile(null)
+    setPreviewUrl(null)
   }, [])
 
   const updateSelectedImage = React.useCallback((file: File) => {
@@ -403,12 +412,25 @@ export function FaceVerificationClient() {
   }, [])
 
   const openFileInput = React.useCallback((captureMode?: FacingMode) => {
-    setFileInputCapture(captureMode)
+    const input =
+      captureMode === "user"
+        ? selfieInputRef.current
+        : captureMode === "environment"
+          ? rearInputRef.current
+          : fileInputRef.current
 
-    window.setTimeout(() => {
-      fileInputRef.current?.click()
-    }, 0)
+    input?.click()
   }, [])
+
+  const selectMode = React.useCallback(
+    (nextMode: VerificationMode) => {
+      setMode(nextMode)
+      setResult(null)
+      setNotice("")
+      clearSelectedImage()
+    },
+    [clearSelectedImage]
+  )
 
   const openCamera = React.useCallback(
     async (options: OpenCameraOptions = {}) => {
@@ -661,12 +683,10 @@ export function FaceVerificationClient() {
     const file = event.target.files?.[0]
 
     if (!file) {
-      setFileInputCapture(undefined)
       return
     }
 
     updateSelectedImage(file)
-    setFileInputCapture(undefined)
     event.target.value = ""
   }
 
@@ -735,6 +755,13 @@ export function FaceVerificationClient() {
       setResult(
         resultFromPayload(mode, response.ok, response.statusText, payload)
       )
+
+      const requestSucceeded =
+        response.ok && readBoolean(payload, "success") !== false
+
+      if (mode === "register" && requestSucceeded) {
+        clearSelectedImage()
+      }
     } catch (error) {
       setResult({
         tone: "danger",
@@ -880,7 +907,22 @@ export function FaceVerificationClient() {
             <input
               ref={fileInputRef}
               accept="image/*"
-              capture={fileInputCapture}
+              className="hidden"
+              onChange={handleFileChange}
+              type="file"
+            />
+            <input
+              ref={selfieInputRef}
+              accept="image/*"
+              capture="user"
+              className="hidden"
+              onChange={handleFileChange}
+              type="file"
+            />
+            <input
+              ref={rearInputRef}
+              accept="image/*"
+              capture="environment"
               className="hidden"
               onChange={handleFileChange}
               type="file"
@@ -971,11 +1013,7 @@ export function FaceVerificationClient() {
                         : "text-[#607878] hover:bg-[#e7fbfb] dark:text-white/68 dark:hover:bg-white/8"
                     )}
                     key={item.id}
-                    onClick={() => {
-                      setMode(item.id)
-                      setResult(null)
-                      setNotice("")
-                    }}
+                    onClick={() => selectMode(item.id)}
                     type="button"
                   >
                     <Icon className="size-4 shrink-0" />
@@ -1077,11 +1115,7 @@ export function FaceVerificationClient() {
                     : "border-white/70 bg-white/70 text-[#607878] dark:border-white/10 dark:bg-white/6 dark:text-white/70"
                 )}
                 key={item.id}
-                onClick={() => {
-                  setMode(item.id)
-                  setResult(null)
-                  setNotice("")
-                }}
+                onClick={() => selectMode(item.id)}
                 type="button"
               >
                 <Icon className="size-4" />
