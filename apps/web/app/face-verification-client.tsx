@@ -25,6 +25,7 @@ type VerificationMode = "register" | "identify" | "verify"
 type CameraState = "idle" | "starting" | "active" | "unavailable"
 type FacingMode = "user" | "environment"
 type ResultTone = "success" | "warning" | "danger"
+type MatchState = "matched" | "not-matched" | "unknown"
 
 type OpenCameraOptions = {
   deviceId?: string
@@ -47,6 +48,8 @@ type ApiResult = {
   title: string
   message: string
   details: ResultDetail[]
+  matchState?: MatchState
+  matchedImageSrc?: string
   raw: unknown
 }
 
@@ -81,8 +84,7 @@ const modes: ModeConfig[] = [
 const inputClassName =
   "h-12 w-full rounded-[8px] border border-[#bde7e8] bg-[#f8fbff] px-3 text-base text-[#263b3e] shadow-sm outline-none transition placeholder:text-[#829898] focus:border-[#52C2C3] focus:ring-3 focus:ring-[#52C2C3]/22 sm:text-sm dark:border-white/10 dark:bg-white/8 dark:text-white dark:focus:border-[#52C2C3]"
 
-const apiBaseUrl =
-  "http://devteam.karoothitbd.com:6565/"
+const apiBaseUrl = "http://devteam.karoothitbd.com:6565"
 
 function cameraLabel(mode: FacingMode) {
   return mode === "user" ? "Selfie camera" : "Rear camera"
@@ -162,6 +164,53 @@ function readBoolean(payload: unknown, key: string) {
   return typeof value === "boolean" ? value : undefined
 }
 
+function imageMimeType(base64: string) {
+  if (base64.startsWith("/9j/")) {
+    return "image/jpeg"
+  }
+
+  if (base64.startsWith("iVBORw0KGgo")) {
+    return "image/png"
+  }
+
+  if (base64.startsWith("R0lGOD")) {
+    return "image/gif"
+  }
+
+  if (base64.startsWith("UklGR")) {
+    return "image/webp"
+  }
+
+  return "image/png"
+}
+
+function imageSrcFromBase64(value: string) {
+  const trimmed = value.trim()
+
+  if (!trimmed) {
+    return ""
+  }
+
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(trimmed)) {
+    return trimmed
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed
+  }
+
+  const compact = trimmed.replace(/\s/g, "")
+  if (compact.length < 32 || !/^[a-z0-9+/=]+$/i.test(compact)) {
+    return ""
+  }
+
+  return `data:${imageMimeType(compact)};base64,${compact}`
+}
+
+function matchedImageSrcFromPayload(payload: unknown) {
+  return imageSrcFromBase64(readString(payload, "matchedPersonImage"))
+}
+
 function buildRequestUrl(path: string, params: Record<string, string> = {}) {
   const query = new URLSearchParams(params).toString()
   return `${apiBaseUrl}${path}${query ? `?${query}` : ""}`
@@ -183,6 +232,8 @@ function resultFromPayload(
   statusText: string,
   payload: unknown
 ): ApiResult {
+  const matchedImageSrc = matchedImageSrcFromPayload(payload)
+
   if (!responseOk) {
     return {
       tone: "danger",
@@ -195,6 +246,7 @@ function resultFromPayload(
         ["Status", readString(payload, "status") || statusText],
         ["Matched with", readString(payload, "matchedWith")],
       ]),
+      matchedImageSrc,
       raw: payload,
     }
   }
@@ -217,30 +269,45 @@ function resultFromPayload(
 
   if (mode === "identify") {
     const success = readBoolean(payload, "success")
+    const matchedWith = readString(payload, "matchedWith")
+    const matched =
+      success === false
+        ? false
+        : Boolean(success || matchedWith || matchedImageSrc)
 
     return {
-      tone: success === false ? "warning" : "success",
-      title: success === false ? "No identity match" : "Identity found",
+      tone: matched ? "success" : "warning",
+      title: matched ? "Identity matched" : "No identity match",
       message: payloadMessage(payload, "Identification completed."),
       details: compactDetails([
-        ["Matched with", readString(payload, "matchedWith")],
+        ["Matched with", matchedWith],
         ["Status", readString(payload, "status")],
       ]),
+      matchState: matched ? "matched" : "not-matched",
+      matchedImageSrc,
       raw: payload,
     }
   }
 
   const matched = readBoolean(payload, "matched")
+  const matchState: MatchState =
+    matched === true ? "matched" : matched === false ? "not-matched" : "unknown"
 
   return {
-    tone: matched === false ? "warning" : "success",
-    title: matched === false ? "Face not verified" : "Face verified",
+    tone: matchState === "not-matched" ? "warning" : "success",
+    title:
+      matchState === "matched"
+        ? "Face verified"
+        : matchState === "not-matched"
+          ? "Face not verified"
+          : "Verification completed",
     message: payloadMessage(payload, "Verification completed."),
     details: compactDetails([
       ["Reference NID", readString(payload, "referenceNidNumber")],
-      ["Matched", typeof matched === "boolean" ? String(matched) : ""],
       ["Status", readString(payload, "status")],
     ]),
+    matchState,
+    matchedImageSrc,
     raw: payload,
   }
 }
@@ -709,7 +776,6 @@ export function FaceVerificationClient() {
               )}
             </button>
           </div>
-     
         </header>
 
         <section className="grid flex-1 gap-3 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:gap-5">
@@ -906,7 +972,6 @@ export function FaceVerificationClient() {
                 <p className="text-sm text-[#657b7b] dark:text-white/58">
                   {modeHint}
                 </p>
-            
               </div>
               <div className="flex size-11 shrink-0 items-center justify-center rounded-full border border-[#52C2C3]/35 bg-white text-[#52C2C3] dark:border-[#52C2C3]/24 dark:bg-[#0b3235] dark:text-[#52C2C3]">
                 <ActiveModeIcon className="size-5" />
@@ -952,8 +1017,6 @@ export function FaceVerificationClient() {
                   />
                 </Field>
               ) : null}
-
-          
             </div>
 
             <Button
@@ -1028,56 +1091,115 @@ function Field({
   )
 }
 
+function matchStateLabel(matchState: MatchState) {
+  if (matchState === "matched") {
+    return "Matched"
+  }
 
+  if (matchState === "not-matched") {
+    return "Not matched"
+  }
 
-
+  return "Completed"
+}
 
 function ResultPanel({ result }: { result: ApiResult }) {
   const Icon = result.tone === "success" ? CheckCircle2 : XCircle
 
   return (
-    <div className="grid gap-3">
-      <div className="flex items-start gap-3">
+    <div
+      className={cn(
+        "grid gap-3",
+        result.matchedImageSrc &&
+          "md:grid-cols-[minmax(0,1fr)_minmax(150px,220px)]"
+      )}
+    >
+      <div className="grid min-w-0 gap-3">
         <div
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-[8px] border",
+            "rounded-[8px] border p-3",
             result.tone === "success" &&
-              "border-[#52C2C3]/35 bg-white/70 text-[#52C2C3] dark:border-[#52C2C3]/25 dark:bg-[#0b3235] dark:text-[#52C2C3]",
+              "border-[#52C2C3]/28 bg-[#f4fffe] dark:border-[#52C2C3]/20 dark:bg-[#0b3235]/82",
             result.tone === "warning" &&
-              "border-[#f5c04a]/30 bg-[#fff8eb] text-[#9a6714] dark:border-[#f5c04a]/25 dark:bg-[#3b2a09]/34 dark:text-[#ffe08a]",
+              "border-[#f5c04a]/28 bg-[#fff8eb] dark:border-[#f5c04a]/22 dark:bg-[#3b2a09]/34",
             result.tone === "danger" &&
-              "border-[#ef4444]/25 bg-[#fef2f2] text-[#b91c1c] dark:border-[#f87171]/25 dark:bg-[#450a0a]/30 dark:text-[#fca5a5]"
+              "border-[#ef4444]/22 bg-[#fef2f2] dark:border-[#f87171]/22 dark:bg-[#450a0a]/30"
           )}
         >
-          <Icon className="size-5" />
+          <div className="flex items-start gap-3">
+            <div
+              className={cn(
+                "flex size-10 shrink-0 items-center justify-center rounded-[8px] border bg-white/76",
+                result.tone === "success" &&
+                  "border-[#52C2C3]/35 text-[#2f9fa0] dark:border-[#52C2C3]/25 dark:bg-[#082629] dark:text-[#52C2C3]",
+                result.tone === "warning" &&
+                  "border-[#f5c04a]/30 text-[#9a6714] dark:border-[#f5c04a]/25 dark:bg-[#3b2a09]/50 dark:text-[#ffe08a]",
+                result.tone === "danger" &&
+                  "border-[#ef4444]/25 text-[#b91c1c] dark:border-[#f87171]/25 dark:bg-[#450a0a]/42 dark:text-[#fca5a5]"
+              )}
+            >
+              <Icon className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-semibold">{result.title}</h3>
+                {result.matchState ? (
+                  <span
+                    className={cn(
+                      "inline-flex min-h-7 items-center rounded-full border px-2.5 text-xs font-semibold",
+                      result.matchState === "matched" &&
+                        "border-[#52C2C3]/35 bg-white/70 text-[#2f9fa0] dark:bg-white/8 dark:text-[#bdf5f5]",
+                      result.matchState === "not-matched" &&
+                        "border-[#f5c04a]/36 bg-white/70 text-[#9a6714] dark:bg-white/8 dark:text-[#ffe08a]",
+                      result.matchState === "unknown" &&
+                        "border-white/70 bg-white/70 text-[#657b7b] dark:border-white/12 dark:bg-white/8 dark:text-white/66"
+                    )}
+                  >
+                    {matchStateLabel(result.matchState)}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-sm break-words text-[#657b7b] dark:text-white/62">
+                {result.message}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="min-w-0">
-          <h3 className="text-base font-semibold">{result.title}</h3>
-          <p className="text-sm break-words text-[#657b7b] dark:text-white/62">
-            {result.message}
-          </p>
-        </div>
+
+        {result.details.length > 0 ? (
+          <dl className="grid gap-2 sm:grid-cols-2">
+            {result.details.map((item) => (
+              <div
+                className="grid min-w-0 gap-1 rounded-[8px] border border-white/70 bg-white/68 px-3 py-2 text-sm dark:border-[#52C2C3]/14 dark:bg-white/6"
+                key={item.label}
+              >
+                <dt className="text-xs font-medium text-[#657b7b] dark:text-white/52">
+                  {item.label}
+                </dt>
+                <dd className="min-w-0 font-semibold break-words">
+                  {item.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </div>
 
-      {result.details.length > 0 ? (
-        <dl className="grid gap-2">
-          {result.details.map((item) => (
-            <div
-              className="flex min-w-0 items-center justify-between gap-3 rounded-[8px] border border-white/70 bg-white/68 px-3 py-2 text-sm dark:border-[#52C2C3]/14 dark:bg-white/6"
-              key={item.label}
-            >
-              <dt className="shrink-0 text-[#657b7b] dark:text-white/52">
-                {item.label}
-              </dt>
-              <dd className="min-w-0 truncate font-semibold">{item.value}</dd>
-            </div>
-          ))}
-        </dl>
+      {result.matchedImageSrc ? (
+        <figure className="min-w-0 rounded-[8px] border border-white/70 bg-white/72 p-2 dark:border-[#52C2C3]/14 dark:bg-white/6">
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-[7px] bg-[#061416]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt="Matched person"
+              className="size-full object-cover"
+              src={result.matchedImageSrc}
+            />
+          </div>
+          <figcaption className="mt-2 truncate text-xs font-medium text-[#657b7b] dark:text-white/56">
+            Matched person image
+          </figcaption>
+        </figure>
       ) : null}
-
-      <pre className="hidden max-h-44 overflow-auto rounded-[8px] border border-white/70 bg-white/68 p-3 text-xs leading-relaxed text-[#314a4c] sm:block dark:border-[#52C2C3]/14 dark:bg-black/22 dark:text-white/72">
-        {JSON.stringify(result.raw, null, 2)}
-      </pre>
     </div>
   )
 }
