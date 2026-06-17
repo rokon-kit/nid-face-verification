@@ -120,10 +120,123 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+@layer utilities {
+    .scanner-grid {
+        background-image:
+            linear-gradient(rgb(159 246 235 / 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgb(159 246 235 / 0.1) 1px, transparent 1px),
+            linear-gradient(rgb(5 170 153 / 0.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgb(5 170 153 / 0.08) 1px, transparent 1px);
+        background-position:
+            0 0,
+            0 0,
+            0 0,
+            0 0;
+        background-size:
+            46px 46px,
+            46px 46px,
+            184px 184px,
+            184px 184px;
+        mask-image: linear-gradient(180deg, transparent, black 14%, black 86%, transparent);
+        opacity: 0.42;
+    }
+
+    .scan-band {
+        --scan-travel: clamp(210px, 42dvh, 330px);
+        animation: face-scan 4.2s cubic-bezier(0.55, 0, 0.25, 1) infinite;
+        filter: blur(1px);
+        opacity: 0.72;
+        will-change: opacity, transform;
+    }
+
+    .scan-face-frame {
+        animation: face-frame 3.4s ease-in-out infinite;
+        will-change: border-color, box-shadow, transform;
+    }
+
+    .scan-line {
+        --scan-travel: clamp(210px, 42dvh, 330px);
+        animation: face-scan 4.2s cubic-bezier(0.55, 0, 0.25, 1) infinite;
+        will-change: opacity, transform;
+    }
+
+    .face-pulse {
+        animation: face-pulse 2.6s ease-in-out infinite;
+        box-shadow:
+            0 0 0 0 rgb(94 234 212 / 0.22),
+            inset 0 0 28px rgb(94 234 212 / 0.1);
+        will-change: box-shadow, transform;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .scan-band,
+        .scan-face-frame,
+        .scan-line,
+        .face-pulse {
+            animation: none;
+        }
+    }
+}
+
+@keyframes face-scan {
+    0%,
+    100% {
+        opacity: 0.18;
+        transform: translate3d(0, 0, 0);
+    }
+
+    14%,
+    82% {
+        opacity: 1;
+    }
+
+    50% {
+        transform: translate3d(0, var(--scan-travel), 0);
+    }
+}
+
+@keyframes face-frame {
+    0%,
+    100% {
+        border-color: rgb(94 234 212 / 0.54);
+        box-shadow:
+            0 0 54px rgb(5 170 153 / 0.2),
+            inset 0 0 34px rgb(94 234 212 / 0.08);
+        transform: scale(1);
+    }
+
+    50% {
+        border-color: rgb(159 246 235 / 0.82);
+        box-shadow:
+            0 0 86px rgb(5 170 153 / 0.34),
+            inset 0 0 44px rgb(94 234 212 / 0.14);
+        transform: scale(1.015);
+    }
+}
+
+@keyframes face-pulse {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 0 rgb(94 234 212 / 0.26),
+            0 0 26px rgb(5 170 153 / 0.2),
+            inset 0 0 28px rgb(94 234 212 / 0.1);
+        transform: scale(1);
+    }
+
+    50% {
+        box-shadow:
+            0 0 0 16px rgb(94 234 212 / 0),
+            0 0 36px rgb(5 170 153 / 0.3),
+            inset 0 0 36px rgb(94 234 212 / 0.16);
+        transform: scale(1.035);
     }
 }
