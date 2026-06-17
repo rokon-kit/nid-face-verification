@@ -82,7 +82,7 @@ const inputClassName =
   "h-12 w-full rounded-[8px] border border-[#bde7e8] bg-[#f8fbff] px-3 text-base text-[#263b3e] shadow-sm outline-none transition placeholder:text-[#829898] focus:border-[#52C2C3] focus:ring-3 focus:ring-[#52C2C3]/22 sm:text-sm dark:border-white/10 dark:bg-white/8 dark:text-white dark:focus:border-[#52C2C3]"
 
 const apiBaseUrl =
-  process.env.NEXT_PUBLIC_FACE_API_BASE_URL?.replace(/\/$/, "") ?? ""
+  "http://devteam.karoothitbd.com:6565/"
 
 function cameraLabel(mode: FacingMode) {
   return mode === "user" ? "Selfie camera" : "Rear camera"
