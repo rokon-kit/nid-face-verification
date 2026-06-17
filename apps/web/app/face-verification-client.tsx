@@ -350,6 +350,9 @@ export function FaceVerificationClient() {
   const [mode, setMode] = React.useState<VerificationMode>("register")
   const [cameraState, setCameraState] = React.useState<CameraState>("idle")
   const [facingMode, setFacingMode] = React.useState<FacingMode>("user")
+  const [fileInputCapture, setFileInputCapture] = React.useState<
+    FacingMode | undefined
+  >()
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
   const [personName, setPersonName] = React.useState("")
@@ -399,6 +402,14 @@ export function FaceVerificationClient() {
     setNotice("")
   }, [])
 
+  const openFileInput = React.useCallback((captureMode?: FacingMode) => {
+    setFileInputCapture(captureMode)
+
+    window.setTimeout(() => {
+      fileInputRef.current?.click()
+    }, 0)
+  }, [])
+
   const openCamera = React.useCallback(
     async (options: OpenCameraOptions = {}) => {
       const nextFacingMode = options.facingMode ?? facingMode
@@ -406,7 +417,12 @@ export function FaceVerificationClient() {
 
       if (!navigator.mediaDevices?.getUserMedia) {
         setCameraState("unavailable")
-        setNotice("Camera is unavailable in this browser.")
+        setNotice(
+          window.isSecureContext
+            ? "Live camera is unavailable in this browser. Opening image capture instead."
+            : "Live camera needs HTTPS on mobile Chrome. Opening phone camera capture instead."
+        )
+        openFileInput(nextFacingMode)
         return null
       }
 
@@ -493,7 +509,7 @@ export function FaceVerificationClient() {
         return null
       }
     },
-    [facingMode, stopTracks]
+    [facingMode, openFileInput, stopTracks]
   )
 
   const closeCamera = React.useCallback(() => {
@@ -645,10 +661,12 @@ export function FaceVerificationClient() {
     const file = event.target.files?.[0]
 
     if (!file) {
+      setFileInputCapture(undefined)
       return
     }
 
     updateSelectedImage(file)
+    setFileInputCapture(undefined)
     event.target.value = ""
   }
 
@@ -862,6 +880,7 @@ export function FaceVerificationClient() {
             <input
               ref={fileInputRef}
               accept="image/*"
+              capture={fileInputCapture}
               className="hidden"
               onChange={handleFileChange}
               type="file"
@@ -906,7 +925,7 @@ export function FaceVerificationClient() {
               </Button>
               <Button
                 className="col-span-2 h-12 touch-manipulation border-[#bde7e8] bg-white/78 text-[#2f9fa0] hover:bg-[#e7fbfb] hover:text-[#52C2C3] sm:col-span-1 sm:h-11 dark:border-[#52C2C3]/18 dark:bg-white/7 dark:text-[#52C2C3] dark:hover:bg-[#52C2C3]/14"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => openFileInput()}
                 title="Upload image"
                 type="button"
                 variant="outline"
