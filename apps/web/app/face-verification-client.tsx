@@ -1046,31 +1046,7 @@ function Metric({ label, value }: ResultDetail) {
   )
 }
 
-function StatusPill({
-  label,
-  tone,
-}: {
-  label: string
-  tone: "success" | "amber" | "cyan" | "neutral"
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex h-8 items-center rounded-full border px-3",
-        tone === "success" &&
-          "border-[#52C2C3]/35 bg-white/70 text-[#52C2C3] dark:border-[#52C2C3]/25 dark:bg-[#0b3235] dark:text-[#52C2C3]",
-        tone === "amber" &&
-          "border-[#f5c04a]/30 bg-[#fff8eb] text-[#9a6714] dark:border-[#f5c04a]/25 dark:bg-[#3b2a09]/34 dark:text-[#ffe08a]",
-        tone === "cyan" &&
-          "border-[#52C2C3]/30 bg-white/70 text-[#2f9fa0] dark:border-[#52C2C3]/25 dark:bg-[#0b3235] dark:text-[#bdf5f5]",
-        tone === "neutral" &&
-          "border-white/70 bg-white/58 text-[#607878] dark:border-white/10 dark:bg-white/6 dark:text-white/68"
-      )}
-    >
-      {label}
-    </span>
-  )
-}
+
 
 function ResultPanel({ result }: { result: ApiResult }) {
   const Icon = result.tone === "success" ? CheckCircle2 : XCircle
