@@ -953,16 +953,7 @@ export function FaceVerificationClient() {
                 </Field>
               ) : null}
 
-              <div className="grid grid-cols-2 gap-2">
-                <Metric
-                  label="Image"
-                  value={selectedFile ? "Loaded" : "Empty"}
-                />
-                <Metric
-                  label="Camera"
-                  value={cameraIsLive ? currentCameraLabel : "Standby"}
-                />
-              </div>
+          
             </div>
 
             <Button
@@ -1037,14 +1028,7 @@ function Field({
   )
 }
 
-function Metric({ label, value }: ResultDetail) {
-  return (
-    <div className="rounded-[8px] border border-white/70 bg-white/62 px-3 py-2 dark:border-[#52C2C3]/14 dark:bg-white/6">
-      <p className="text-xs text-[#657b7b] dark:text-white/52">{label}</p>
-      <p className="truncate text-sm font-semibold">{value}</p>
-    </div>
-  )
-}
+
 
 
 
