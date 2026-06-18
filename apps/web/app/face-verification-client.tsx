@@ -103,11 +103,27 @@ function getServerStandaloneDisplayModeSnapshot() {
   return false
 }
 
+function getMobileCameraCorrectionSnapshot() {
+  return (
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 &&
+      window.matchMedia("(pointer: coarse)").matches)
+  )
+}
+
+function getServerMobileCameraCorrectionSnapshot() {
+  return false
+}
+
 function subscribeToStandaloneDisplayMode(onStoreChange: () => void) {
   const mediaQuery = window.matchMedia("(display-mode: standalone)")
   mediaQuery.addEventListener("change", onStoreChange)
 
   return () => mediaQuery.removeEventListener("change", onStoreChange)
+}
+
+function subscribeToStaticClientSnapshot() {
+  return () => undefined
 }
 
 function isFacingMode(value: unknown): value is FacingMode {
@@ -388,6 +404,11 @@ export function FaceVerificationClient() {
     getStandaloneDisplayModeSnapshot,
     getServerStandaloneDisplayModeSnapshot
   )
+  const mobileCameraNeedsCorrection = React.useSyncExternalStore(
+    subscribeToStaticClientSnapshot,
+    getMobileCameraCorrectionSnapshot,
+    getServerMobileCameraCorrectionSnapshot
+  )
   const [appInstallCompleted, setAppInstallCompleted] = React.useState(false)
   const [installingApp, setInstallingApp] = React.useState(false)
 
@@ -404,6 +425,8 @@ export function FaceVerificationClient() {
   const ActiveModeIcon = activeMode.Icon
   const appInstalled = standaloneAppInstalled || appInstallCompleted
   const cameraIsLive = cameraState === "active"
+  const correctMobileFrontCameraMirror =
+    facingMode === "user" && mobileCameraNeedsCorrection
 
   const stopTracks = React.useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -732,6 +755,11 @@ export function FaceVerificationClient() {
       return
     }
 
+    if (correctMobileFrontCameraMirror) {
+      context.translate(width, 0)
+      context.scale(-1, 1)
+    }
+
     context.drawImage(video, 0, 0, width, height)
 
     const blob = await new Promise<Blob | null>((resolve) => {
@@ -969,7 +997,8 @@ export function FaceVerificationClient() {
                 autoPlay
                 className={cn(
                   "absolute inset-0 size-full object-cover transition-opacity duration-300",
-                  cameraIsLive ? "opacity-100" : "opacity-0"
+                  cameraIsLive ? "opacity-100" : "opacity-0",
+                  correctMobileFrontCameraMirror && "-scale-x-100"
                 )}
                 muted
                 playsInline
