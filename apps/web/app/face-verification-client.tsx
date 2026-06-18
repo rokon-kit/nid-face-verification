@@ -4,11 +4,11 @@ import * as React from "react"
 import {
   BadgeCheck,
   Camera,
-  CameraOff,
   CheckCircle2,
   Download,
   IdCard,
   Loader2,
+  // RotateCcw,
   ScanFace,
   Search,
   ShieldCheck,
@@ -117,7 +117,7 @@ function isFacingMode(value: unknown): value is FacingMode {
 function inferFacingModeFromLabel(label: string): FacingMode | null {
   const normalizedLabel = label.toLowerCase()
 
-  if (/(back|environment|world|main)/.test(normalizedLabel)) {
+  if (/(back|rear|environment|world|main)/.test(normalizedLabel)) {
     return "environment"
   }
 
@@ -136,6 +136,23 @@ async function getVideoDevices() {
   const devices = await navigator.mediaDevices.enumerateDevices()
   return devices.filter((device) => device.kind === "videoinput")
 }
+
+// function findCameraDevice(
+//   devices: MediaDeviceInfo[],
+//   targetFacingMode: FacingMode,
+//   currentDeviceId?: string
+// ) {
+//   const matchingDevices = devices.filter(
+//     (device) => inferFacingModeFromLabel(device.label) === targetFacingMode
+//   )
+
+//   return (
+//     matchingDevices.find((device) => device.deviceId !== currentDeviceId) ??
+//     matchingDevices[0] ??
+//     devices.find((device) => device.deviceId !== currentDeviceId) ??
+//     devices[0]
+//   )
+// }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -379,12 +396,14 @@ export function FaceVerificationClient() {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const selfieInputRef = React.useRef<HTMLInputElement | null>(null)
   const streamRef = React.useRef<MediaStream | null>(null)
+  const cameraRequestIdRef = React.useRef(0)
   const previewObjectUrlRef = React.useRef<string | null>(null)
   const successAlertTimerRef = React.useRef<number | null>(null)
 
   const activeMode = modes.find((item) => item.id === mode) ?? modes[0]!
   const ActiveModeIcon = activeMode.Icon
   const appInstalled = standaloneAppInstalled || appInstallCompleted
+  const cameraIsLive = cameraState === "active"
 
   const stopTracks = React.useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -464,6 +483,8 @@ export function FaceVerificationClient() {
 
   const openCamera = React.useCallback(
     async (options: OpenCameraOptions = {}) => {
+      const requestId = cameraRequestIdRef.current + 1
+      cameraRequestIdRef.current = requestId
       const nextFacingMode = options.facingMode ?? facingMode
       setNotice("")
 
@@ -526,6 +547,11 @@ export function FaceVerificationClient() {
           throw cameraError
         }
 
+        if (cameraRequestIdRef.current !== requestId) {
+          stream.getTracks().forEach((track) => track.stop())
+          return null
+        }
+
         streamRef.current = stream
 
         if (videoRef.current) {
@@ -552,6 +578,10 @@ export function FaceVerificationClient() {
         setCameraState("active")
         return actualFacingMode
       } catch (error) {
+        if (cameraRequestIdRef.current !== requestId) {
+          return null
+        }
+
         setCameraState("unavailable")
         setNotice(
           error instanceof Error
@@ -565,9 +595,70 @@ export function FaceVerificationClient() {
   )
 
   const closeCamera = React.useCallback(() => {
+    cameraRequestIdRef.current += 1
     stopTracks()
     setCameraState("idle")
   }, [stopTracks])
+
+  const cancelCameraInput = React.useCallback(() => {
+    closeCamera()
+    clearSelectedImage()
+    setResult(null)
+    setNotice("")
+    clearSuccessAlert()
+    setFacingMode("user")
+  }, [clearSelectedImage, clearSuccessAlert, closeCamera])
+
+  const startFreshCameraInput = React.useCallback(async () => {
+    clearSelectedImage()
+    setResult(null)
+    setNotice("")
+    clearSuccessAlert()
+    setFacingMode("user")
+
+    await openCamera({
+      facingMode: "user",
+      forceFacing: true,
+    })
+  }, [clearSelectedImage, clearSuccessAlert, openCamera])
+
+  // const switchCamera = React.useCallback(async () => {
+  //   if (!cameraIsLive) {
+  //     return
+  //   }
+
+  //   const nextFacingMode = facingMode === "user" ? "environment" : "user"
+  //   const currentDeviceId = streamRef.current
+  //     ?.getVideoTracks()[0]
+  //     ?.getSettings().deviceId
+  //   const devices = await getVideoDevices().catch(() => [])
+  //   const targetDevice = findCameraDevice(
+  //     devices,
+  //     nextFacingMode,
+  //     currentDeviceId
+  //   )
+
+  //   clearSelectedImage()
+  //   setResult(null)
+  //   setNotice("")
+  //   clearSuccessAlert()
+
+  //   const actualFacingMode = await openCamera({
+  //     deviceId: targetDevice?.deviceId,
+  //     facingMode: nextFacingMode,
+  //     forceFacing: true,
+  //   })
+
+  //   if (actualFacingMode && actualFacingMode !== nextFacingMode) {
+  //     setNotice("Requested camera is not available. Using available camera.")
+  //   }
+  // }, [
+  //   cameraIsLive,
+  //   clearSelectedImage,
+  //   clearSuccessAlert,
+  //   facingMode,
+  //   openCamera,
+  // ])
 
   React.useEffect(() => {
     return () => {
@@ -634,7 +725,14 @@ export function FaceVerificationClient() {
 
     canvas.width = width
     canvas.height = height
-    canvas.getContext("2d")?.drawImage(video, 0, 0, width, height)
+
+    const context = canvas.getContext("2d")
+    if (!context) {
+      setNotice("Could not prepare the capture.")
+      return
+    }
+
+    context.drawImage(video, 0, 0, width, height)
 
     const blob = await new Promise<Blob | null>((resolve) => {
       canvas.toBlob((nextBlob) => resolve(nextBlob), "image/jpeg", 0.92)
@@ -648,6 +746,7 @@ export function FaceVerificationClient() {
     updateSelectedImage(
       new File([blob], `nid-face-${Date.now()}.jpg`, { type: "image/jpeg" })
     )
+    closeCamera()
   }
 
   async function installApp() {
@@ -789,7 +888,7 @@ export function FaceVerificationClient() {
     }
   }
 
-  const cameraIsLive = cameraState === "active"
+  const cancelDisabled = cameraState === "idle" && !selectedFile && !result
   const submitDisabled = submitting || Boolean(validateForm())
   const scannerIsVisible = !result && !previewUrl
   const ScannerResultIcon = result?.tone === "success" ? CheckCircle2 : XCircle
@@ -870,8 +969,7 @@ export function FaceVerificationClient() {
                 autoPlay
                 className={cn(
                   "absolute inset-0 size-full object-cover transition-opacity duration-300",
-                  cameraIsLive ? "opacity-100" : "opacity-0",
-                  facingMode === "user" ? "-scale-x-100" : "scale-x-100"
+                  cameraIsLive ? "opacity-100" : "opacity-0"
                 )}
                 muted
                 playsInline
@@ -970,11 +1068,11 @@ export function FaceVerificationClient() {
               onChange={handleFileChange}
               type="file"
             />
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
               <Button
                 className="h-12 touch-manipulation bg-[#52C2C3] text-white shadow-sm shadow-[#52C2C3]/30 hover:bg-[#49b6b7] sm:h-11"
-                disabled={cameraState === "starting"}
-                onClick={() => void openCamera()}
+                disabled={cameraState === "starting" || cameraIsLive}
+                onClick={() => void startFreshCameraInput()}
                 title="Start camera"
                 type="button"
               >
@@ -986,7 +1084,12 @@ export function FaceVerificationClient() {
                 Start
               </Button>
               <Button
-                className="h-12 touch-manipulation border-[#bde7e8] bg-white/78 text-[#2f9fa0] hover:bg-[#e7fbfb] hover:text-[#52C2C3] sm:h-11 dark:border-[#52C2C3]/18 dark:bg-white/7 dark:text-[#52C2C3] dark:hover:bg-[#52C2C3]/14"
+                className={cn(
+                  "h-12 touch-manipulation sm:h-11",
+                  cameraIsLive
+                    ? "border-[#52C2C3] bg-[#52C2C3] text-white shadow-md shadow-[#52C2C3]/35 hover:bg-[#49b6b7]"
+                    : "border-[#bde7e8] bg-white/78 text-[#2f9fa0] hover:bg-[#e7fbfb] hover:text-[#52C2C3] dark:border-[#52C2C3]/18 dark:bg-white/7 dark:text-[#52C2C3] dark:hover:bg-[#52C2C3]/14"
+                )}
                 disabled={!cameraIsLive}
                 onClick={captureFrame}
                 title="Capture image"
@@ -996,6 +1099,17 @@ export function FaceVerificationClient() {
                 <ScanFace className="size-4" />
                 Capture
               </Button>
+              {/* <Button
+                className="h-12 touch-manipulation border-[#bde7e8] bg-white/78 text-[#2f9fa0] hover:bg-[#e7fbfb] hover:text-[#52C2C3] sm:h-11 dark:border-[#52C2C3]/18 dark:bg-white/7 dark:text-[#52C2C3] dark:hover:bg-[#52C2C3]/14"
+                disabled={!cameraIsLive}
+                onClick={() => void switchCamera()}
+                title="Switch front/back camera"
+                type="button"
+                variant="outline"
+              >
+                <RotateCcw className="size-4" />
+                Switch
+              </Button> */}
               <Button
                 className="h-12 touch-manipulation border-[#bde7e8] bg-white/78 text-[#2f9fa0] hover:bg-[#e7fbfb] hover:text-[#52C2C3] sm:h-11 dark:border-[#52C2C3]/18 dark:bg-white/7 dark:text-[#52C2C3] dark:hover:bg-[#52C2C3]/14"
                 onClick={() => openFileInput()}
@@ -1007,15 +1121,15 @@ export function FaceVerificationClient() {
                 Upload
               </Button>
               <Button
-                className="h-12 touch-manipulation sm:h-11"
-                disabled={cameraState === "idle"}
-                onClick={closeCamera}
-                title="Stop camera"
+                className="col-span-2 h-12 touch-manipulation sm:col-span-1 sm:h-11"
+                disabled={cancelDisabled}
+                onClick={cancelCameraInput}
+                title="Cancel camera input"
                 type="button"
                 variant="destructive"
               >
-                <CameraOff className="size-4" />
-                Stop
+                <X className="size-4" />
+                Cancel
               </Button>
             </div>
 
