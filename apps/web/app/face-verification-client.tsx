@@ -839,6 +839,15 @@ export function FaceVerificationClient() {
   const nextFacingMode = facingMode === "user" ? "environment" : "user"
   const nextCameraLabel = cameraLabel(nextFacingMode)
   const submitDisabled = submitting || Boolean(validateForm())
+  const scannerIsVisible = !result
+  const ScannerResultIcon = result?.tone === "success" ? CheckCircle2 : XCircle
+  const cameraStatusLabel = result
+    ? "Response ready"
+    : cameraState === "starting"
+      ? `Starting ${currentCameraLabel}`
+      : cameraIsLive
+        ? currentCameraLabel
+        : `Ready: ${currentCameraLabel}`
   const modeHint =
     mode === "register"
       ? "Create a new NID face profile"
@@ -888,7 +897,7 @@ export function FaceVerificationClient() {
             <div className="grid gap-1 text-left sm:text-center">
               <h2 className="text-base font-semibold">Face recognition</h2>
               <p className="text-xs text-[#657b7b] dark:text-white/58">
-                Position the face inside the frame
+                Capture or upload a clear face image
               </p>
             </div>
 
@@ -921,14 +930,16 @@ export function FaceVerificationClient() {
                   alt="Selected face"
                   className={cn(
                     "absolute inset-0 size-full object-cover transition-opacity duration-300",
-                    cameraIsLive ? "opacity-45" : "opacity-100"
+                    cameraIsLive && scannerIsVisible
+                      ? "opacity-45"
+                      : "opacity-100"
                   )}
                   src={previewUrl}
                 />
               ) : null}
-              {!previewUrl && !cameraIsLive ? (
+              {!previewUrl && !cameraIsLive && scannerIsVisible ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
-                  <div className="face-pulse relative z-10 flex size-24 items-center justify-center rounded-full border border-[#5eead4]/55 bg-white/8">
+                  <div className="face-pulse relative z-10 flex size-24 items-center justify-center rounded-[8px] border border-[#5eead4]/55 bg-white/8">
                     <ScanFace className="size-12 text-[#dffbf7]" />
                   </div>
                   <div className="relative z-10 rounded-[8px] bg-[#031b18]/45 px-4 py-2 backdrop-blur-sm">
@@ -939,27 +950,60 @@ export function FaceVerificationClient() {
                   </div>
                 </div>
               ) : null}
-              <div className="scanner-grid pointer-events-none absolute inset-0" />
-              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(8,13,19,0.05)_0%,transparent_25%,transparent_70%,rgba(8,13,19,0.42)_100%)]" />
-              <div className="scan-face-frame pointer-events-none absolute inset-x-[18%] top-[11%] bottom-[11%] rounded-[48%] border border-[#5eead4]/60 shadow-[0_0_70px_rgba(5,170,153,0.24)]" />
-              <div className="scan-band pointer-events-none absolute inset-x-[12%] top-[15%] h-24 rounded-full bg-[linear-gradient(180deg,rgba(94,234,212,0.20),rgba(5,170,153,0.10),transparent)]" />
-              <div className="scan-line pointer-events-none absolute inset-x-[11%] top-[17%] h-[3px] rounded-full bg-[linear-gradient(90deg,transparent,rgba(5,170,153,0.98),rgba(94,234,212,0.96),rgba(223,251,247,0.82),transparent)] shadow-[0_0_36px_rgba(5,170,153,0.85)]" />
-              <div className="pointer-events-none absolute top-5 left-5 size-14 border-t-2 border-l-2 border-[#05aa99]/85" />
-              <div className="pointer-events-none absolute top-5 right-5 size-14 border-t-2 border-r-2 border-[#5eead4]/85" />
-              <div className="pointer-events-none absolute bottom-5 left-5 size-14 border-b-2 border-l-2 border-[#9ff6eb]/75" />
-              <div className="pointer-events-none absolute right-5 bottom-5 size-14 border-r-2 border-b-2 border-[#05aa99]/85" />
+              {!previewUrl && !cameraIsLive && result ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
+                  <div
+                    className={cn(
+                      "relative z-10 flex size-24 items-center justify-center rounded-[8px] border bg-white/10 backdrop-blur-sm",
+                      result.tone === "success" &&
+                        "border-[#5eead4]/45 text-[#dffbf7]",
+                      result.tone === "warning" &&
+                        "border-[#f5c04a]/50 text-[#ffe7a3]",
+                      result.tone === "danger" &&
+                        "border-[#f87171]/50 text-[#fecaca]"
+                    )}
+                  >
+                    <ScannerResultIcon className="size-12" />
+                  </div>
+                  <div className="relative z-10 max-w-md rounded-[8px] bg-[#031b18]/58 px-4 py-3 backdrop-blur-sm">
+                    <p className="text-lg font-semibold">{result.title}</p>
+                    <p className="mt-1 text-sm break-words text-[#dffbf7]/75">
+                      {result.message}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+              <div
+                className={cn(
+                  "pointer-events-none absolute inset-0 transition-opacity duration-500",
+                  scannerIsVisible ? "opacity-100" : "opacity-0"
+                )}
+              >
+                <div className="scanner-grid absolute inset-0" />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,13,19,0.05)_0%,transparent_25%,transparent_70%,rgba(8,13,19,0.42)_100%)]" />
+                <div className="scan-band absolute inset-x-[12%] top-[15%] h-24 rounded-[8px] bg-[linear-gradient(180deg,rgba(94,234,212,0.20),rgba(5,170,153,0.10),transparent)]" />
+                <div className="scan-line absolute inset-x-[11%] top-[17%] h-[3px] rounded-full bg-[linear-gradient(90deg,transparent,rgba(5,170,153,0.98),rgba(94,234,212,0.96),rgba(223,251,247,0.82),transparent)] shadow-[0_0_36px_rgba(5,170,153,0.85)]" />
+                <div className="absolute top-5 left-5 size-14 border-t-2 border-l-2 border-[#05aa99]/85" />
+                <div className="absolute top-5 right-5 size-14 border-t-2 border-r-2 border-[#5eead4]/85" />
+                <div className="absolute bottom-5 left-5 size-14 border-b-2 border-l-2 border-[#9ff6eb]/75" />
+                <div className="absolute right-5 bottom-5 size-14 border-r-2 border-b-2 border-[#05aa99]/85" />
+              </div>
               <div className="absolute top-3 left-3 flex items-center gap-2 rounded-[8px] bg-black/45 px-3 py-2 text-xs font-medium text-[#dffbf7] backdrop-blur">
                 <span
                   className={cn(
                     "size-2 rounded-full",
-                    cameraIsLive ? "bg-[#05aa99]" : "bg-[#9ff6eb]"
+                    result
+                      ? result.tone === "danger"
+                        ? "bg-[#f87171]"
+                        : result.tone === "warning"
+                          ? "bg-[#f5c04a]"
+                          : "bg-[#05aa99]"
+                      : cameraIsLive
+                        ? "bg-[#05aa99]"
+                        : "bg-[#9ff6eb]"
                   )}
                 />
-                {cameraState === "starting"
-                  ? `Starting ${currentCameraLabel}`
-                  : cameraIsLive
-                    ? currentCameraLabel
-                    : `Ready: ${currentCameraLabel}`}
+                {cameraStatusLabel}
               </div>
             </div>
 

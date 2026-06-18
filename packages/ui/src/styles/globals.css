@@ -157,11 +157,6 @@
         will-change: opacity, transform;
     }
 
-    .scan-face-frame {
-        animation: face-frame 3.4s ease-in-out infinite;
-        will-change: border-color, box-shadow, transform;
-    }
-
     .scan-line {
         --scan-travel: clamp(210px, 42dvh, 330px);
         animation: face-scan 4.2s cubic-bezier(0.55, 0, 0.25, 1) infinite;
@@ -178,7 +173,6 @@
 
     @media (prefers-reduced-motion: reduce) {
         .scan-band,
-        .scan-face-frame,
         .scan-line,
         .face-pulse {
             animation: none;
@@ -200,25 +194,6 @@
 
     50% {
         transform: translate3d(0, var(--scan-travel), 0);
-    }
-}
-
-@keyframes face-frame {
-    0%,
-    100% {
-        border-color: rgb(94 234 212 / 0.54);
-        box-shadow:
-            0 0 54px rgb(5 170 153 / 0.2),
-            inset 0 0 34px rgb(94 234 212 / 0.08);
-        transform: scale(1);
-    }
-
-    50% {
-        border-color: rgb(159 246 235 / 0.82);
-        box-shadow:
-            0 0 86px rgb(5 170 153 / 0.34),
-            inset 0 0 44px rgb(94 234 212 / 0.14);
-        transform: scale(1.015);
     }
 }
 
