@@ -15,7 +15,8 @@ const fontMono = Geist_Mono({
 export const metadata: Metadata = {
   applicationName: "NID Face Match",
   title: "NID Face Verification",
-  description: "Face registration, identification, and verification for NID workflows.",
+  description:
+    "Face registration, identification, and verification for NID workflows.",
   formatDetection: {
     telephone: false,
   },
@@ -47,9 +48,14 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", geist.variable)}
+      className={cn(
+        "antialiased",
+        fontMono.variable,
+        "font-sans",
+        geist.variable
+      )}
     >
-      <body>
+      <body suppressHydrationWarning>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
