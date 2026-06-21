@@ -8,6 +8,7 @@ import {
   Download,
   IdCard,
   Loader2,
+  LogOut,
   // RotateCcw,
   ScanFace,
   Search,
@@ -91,6 +92,10 @@ const inputClassName =
   "h-12 w-full rounded-[8px] border border-[#bde7e8] bg-[#f8fbff] px-3 text-base text-[#263b3e] shadow-sm outline-none transition placeholder:text-[#829898] focus:border-[#52C2C3] focus:ring-3 focus:ring-[#52C2C3]/22 sm:text-sm dark:border-white/10 dark:bg-white/8 dark:text-white dark:focus:border-[#52C2C3]"
 
 const apiBaseUrl = "https://faceapi.karoothitbd.com"
+
+type FaceVerificationClientProps = {
+  signOutAction: () => Promise<void>
+}
 
 function getStandaloneDisplayModeSnapshot() {
   return (
@@ -382,7 +387,9 @@ function fileSizeLabel(file: File | null) {
   return `${(file.size / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function FaceVerificationClient() {
+export function FaceVerificationClient({
+  signOutAction,
+}: FaceVerificationClientProps) {
   const [mode, setMode] = React.useState<VerificationMode>("register")
   const [cameraState, setCameraState] = React.useState<CameraState>("idle")
   const [facingMode, setFacingMode] = React.useState<FacingMode>("user")
@@ -969,6 +976,17 @@ export function FaceVerificationClient() {
               )}
             </button>
           </div>
+          <form action={signOutAction} className="hidden sm:block">
+            <Button
+              className="h-11 touch-manipulation border-[#bde7e8] bg-white/78 text-[#2f9fa0] hover:bg-[#e7fbfb] hover:text-[#52C2C3] dark:border-[#52C2C3]/18 dark:bg-white/7 dark:text-[#52C2C3] dark:hover:bg-[#52C2C3]/14"
+              title="Logout"
+              type="submit"
+              variant="outline"
+            >
+              <LogOut className="size-4" />
+              Logout
+            </Button>
+          </form>
         </header>
 
         <section className="grid flex-1 gap-3 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:gap-5">
@@ -1275,7 +1293,7 @@ export function FaceVerificationClient() {
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[#bde7e8] bg-[#f2fbfa]/96 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-16px_32px_rgba(76,126,126,0.18)] backdrop-blur sm:hidden dark:border-[#52C2C3]/16 dark:bg-[#071d1f]/96">
-        <div className="mx-auto grid max-w-md grid-cols-3 gap-2">
+        <div className="mx-auto grid max-w-md grid-cols-4 gap-2">
           {modes.map((item) => {
             const Icon = item.Icon
             const selected = item.id === mode
@@ -1297,6 +1315,15 @@ export function FaceVerificationClient() {
               </button>
             )
           })}
+          <form action={signOutAction}>
+            <button
+              className="flex h-14 w-full touch-manipulation flex-col items-center justify-center gap-1 rounded-[8px] border border-white/70 bg-white/70 text-xs font-semibold text-[#607878] transition dark:border-white/10 dark:bg-white/6 dark:text-white/70"
+              type="submit"
+            >
+              <LogOut className="size-4" />
+              Logout
+            </button>
+          </form>
         </div>
       </nav>
     </main>

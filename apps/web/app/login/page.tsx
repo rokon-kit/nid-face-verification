@@ -33,6 +33,14 @@ function safeRedirectPath(value: unknown) {
     return "/"
   }
 
+  if (value === "/login" || value.startsWith("/login?")) {
+    return "/"
+  }
+
+  if (value === "/api/auth/signin" || value.startsWith("/api/auth/signin?")) {
+    return "/"
+  }
+
   return value
 }
 
@@ -151,7 +159,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               type="submit"
             >
               <LogIn className="size-4" />
-              Continue securely
+              Login
             </Button>
           </form>
         </section>
