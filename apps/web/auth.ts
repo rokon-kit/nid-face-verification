@@ -1,6 +1,8 @@
 import NextAuth, { type NextAuthResult } from "next-auth"
 import Keycloak from "next-auth/providers/keycloak"
 
+import { isKeycloakRedirectUrl } from "@/lib/keycloak"
+
 const PUBLIC_FILE =
   /\.(?:avif|gif|ico|jpg|jpeg|png|svg|webp|txt|xml|json|webmanifest)$/i
 
@@ -25,6 +27,21 @@ const authResult: NextAuthResult = NextAuth({
     signIn: "/login",
   },
   callbacks: {
+    redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`
+      }
+
+      try {
+        if (new URL(url).origin === baseUrl || isKeycloakRedirectUrl(url)) {
+          return url
+        }
+      } catch {
+        return baseUrl
+      }
+
+      return baseUrl
+    },
     authorized({ auth, request }) {
       const { nextUrl } = request
       const pathname = nextUrl.pathname
