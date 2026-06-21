@@ -1,0 +1,16 @@
+
+> web@0.0.1 dev
+> next dev -p 3020
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3020
+- Network:       http://172.16.0.2:3020
+- Environments: .env.local
+✓ Ready in 3.7s
+Creating turbopack project {
+  dir: 'C:\\projects\\frontend\\nid-face-verification\\nid-face-verification\\apps\\web',
+  testMode: true
+}
+
+ GET /login 200 in 595ms (next.js: 162ms, proxy.ts: 187ms, application-code: 245ms)
+[?25h
