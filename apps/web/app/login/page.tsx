@@ -36,7 +36,7 @@ function safeRedirectPath(value: unknown) {
   return value
 }
 
-async function signInWithKeycloak(formData: FormData) {
+async function signInWithIdentityProvider(formData: FormData) {
   "use server"
 
   await signIn("keycloak", {
@@ -56,8 +56,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const hasSignInError = Boolean(params.error)
 
   return (
-    <main className="min-h-dvh overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(82,194,195,0.22),transparent_32%),linear-gradient(135deg,#f8fbff_0%,#e7fbfb_52%,#f4fffe_100%)] text-[#263b3e] dark:bg-[radial-gradient(circle_at_top_left,rgba(82,194,195,0.18),transparent_34%),linear-gradient(135deg,#061416_0%,#09282b_55%,#041114_100%)] dark:text-white">
-      <div className="mx-auto grid min-h-dvh w-full max-w-6xl items-center gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(360px,430px)] lg:px-8">
+    <main className="min-h-dvh overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(82,194,195,0.24),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(5,170,153,0.16),transparent_34%),linear-gradient(135deg,#f8fbff_0%,#e8fbfa_48%,#f7fffc_100%)] text-[#263b3e] dark:bg-[radial-gradient(circle_at_top_left,rgba(82,194,195,0.18),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(5,170,153,0.18),transparent_36%),linear-gradient(135deg,#061416_0%,#09282b_55%,#041114_100%)] dark:text-white">
+      <div className="mx-auto grid min-h-dvh w-full max-w-6xl items-center gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(360px,430px)] lg:gap-10 lg:px-8">
         <section className="hidden min-w-0 lg:block">
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 rounded-[8px] border border-[#52C2C3]/30 bg-white/72 px-3 py-2 text-sm font-semibold text-[#2f9fa0] shadow-sm shadow-[#52C2C3]/12 backdrop-blur dark:border-[#52C2C3]/24 dark:bg-white/8 dark:text-[#bdf5f5]">
@@ -68,8 +68,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               NID Face Verification
             </h1>
             <p className="mt-4 max-w-lg text-base leading-7 text-[#657b7b] dark:text-white/64">
-              Sign in with your Keycloak account before opening camera capture,
-              registration, identification, or verification workflows.
+              Sign in with your authorized account before opening camera
+              capture, registration, identification, or verification workflows.
             </p>
           </div>
 
@@ -89,13 +89,27 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </div>
               <div className="absolute top-3 left-3 flex items-center gap-2 rounded-[8px] bg-black/42 px-3 py-2 text-xs font-medium backdrop-blur">
                 <span className="size-2 rounded-full bg-[#05aa99]" />
-                Authentication required
+                Identity check required
               </div>
             </div>
           </div>
         </section>
 
         <section className="mx-auto w-full max-w-md rounded-[8px] border border-white/62 bg-white/88 p-4 shadow-2xl shadow-[#6e9692]/20 backdrop-blur sm:p-5 dark:border-[#52C2C3]/16 dark:bg-white/8 dark:shadow-black/30">
+          <div className="mb-4 flex items-center gap-3 lg:hidden">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-[8px] bg-[#061416] text-[#dffbf7] shadow-lg shadow-[#52C2C3]/20">
+              <ScanFace className="size-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[#2f9fa0] dark:text-[#bdf5f5]">
+                NID Face Verification
+              </p>
+              <p className="text-sm text-[#657b7b] dark:text-white/58">
+                Secure access portal
+              </p>
+            </div>
+          </div>
+
           <div className="flex items-start justify-between gap-3 border-b border-[#bde7e8] pb-4 dark:border-[#52C2C3]/14">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-[#2f9fa0] dark:text-[#bdf5f5]">
@@ -116,9 +130,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 <KeyRound className="size-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold">Keycloak SSO</p>
+                <p className="text-sm font-semibold">Secure account</p>
                 <p className="text-sm text-[#657b7b] dark:text-white/58">
-                  Continue with your authorized account.
+                  Continue to protected verification tools.
                 </p>
               </div>
             </div>
@@ -130,14 +144,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             ) : null}
           </div>
 
-          <form action={signInWithKeycloak}>
+          <form action={signInWithIdentityProvider}>
             <input name="redirectTo" type="hidden" value={callbackUrl} />
             <Button
-              className="h-12 w-full touch-manipulation bg-[#52C2C3] text-white shadow-lg shadow-[#52C2C3]/26 hover:bg-[#49b6b7]"
+              className="h-12 w-full touch-manipulation bg-[#52C2C3] text-white shadow-lg shadow-[#52C2C3]/26 hover:bg-[#49b6b7] active:bg-[#2f9fa0]"
               type="submit"
             >
               <LogIn className="size-4" />
-              Sign in with Keycloak
+              Continue securely
             </Button>
           </form>
         </section>

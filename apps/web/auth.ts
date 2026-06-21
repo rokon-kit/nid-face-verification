@@ -14,27 +14,36 @@ const authResult: NextAuthResult = NextAuth({
   trustHost: true,
   providers: [
     Keycloak({
+      name: "Secure Account",
       clientId: env("KEYCLOAK_CLIENT_ID") ?? env("AUTH_KEYCLOAK_ID"),
       clientSecret:
         env("KEYCLOAK_CLIENT_SECRET") ?? env("AUTH_KEYCLOAK_SECRET"),
       issuer: env("KEYCLOAK_ISSUER") ?? env("AUTH_KEYCLOAK_ISSUER"),
     }),
   ],
+  pages: {
+    signIn: "/login",
+  },
   callbacks: {
     authorized({ auth, request }) {
       const { nextUrl } = request
       const pathname = nextUrl.pathname
       const isLoggedIn = Boolean(auth)
       const isAuthRoute = pathname.startsWith("/api/auth")
+      const isLoginRoute = pathname === "/login"
       const isPublicFile = PUBLIC_FILE.test(pathname)
 
-      if (!isLoggedIn && !isAuthRoute && !isPublicFile) {
-        const signInUrl = new URL("/api/auth/signin", nextUrl.origin)
-        signInUrl.searchParams.set(
+      if (isLoggedIn && isLoginRoute) {
+        return Response.redirect(new URL("/", nextUrl.origin))
+      }
+
+      if (!isLoggedIn && !isAuthRoute && !isLoginRoute && !isPublicFile) {
+        const loginUrl = new URL("/login", nextUrl.origin)
+        loginUrl.searchParams.set(
           "callbackUrl",
           `${pathname}${nextUrl.search}`
         )
-        return Response.redirect(signInUrl)
+        return Response.redirect(loginUrl)
       }
 
       return true
