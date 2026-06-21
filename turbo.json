@@ -3,10 +3,15 @@
   "ui": "tui",
   "globalEnv": [
     "AUTH_SECRET",
+    "AUTH_TRUST_HOST",
     "AUTH_URL",
+    "AUTH_KEYCLOAK_ID",
+    "AUTH_KEYCLOAK_SECRET",
+    "AUTH_KEYCLOAK_ISSUER",
     "KEYCLOAK_CLIENT_ID",
     "KEYCLOAK_CLIENT_SECRET",
     "KEYCLOAK_ISSUER",
+    "NEXTAUTH_SECRET",
     "NEXTAUTH_URL"
   ],
   "tasks": {
